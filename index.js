@@ -75,6 +75,12 @@ app.get('/pizza/:email', async (req, res) => {
     res.send(result)
 })
 
+app.delete('/pizza/:id', async (req, res) => {
+    const id = req.params.id
+    const result = await allPizza.deleteOne({ _id: new ObjectId(id) })
+    res.send(result)
+})
+
 //http://localhost:5000/pizza
 app.get('/pizzaSection', async (req, res) => {
 
@@ -91,9 +97,15 @@ app.post('/order', async (req, res) => {
     res.send(result)
 })
 
-app.get('/myOrder/:email',async(req,res)=>{
-    const email=req.params.email
-    const result=await orderItem.find({useremail:email}).toArray()
+app.get('/myOrder/:email', async (req, res) => {
+    const email = req.params.email
+    const result = await orderItem.find({ useremail: email }).toArray()
+    res.send(result)
+})
+
+app.delete('/myOrder/:id', async (req, res) => {
+    const id = req.params.id
+    const result = await orderItem.deleteOne({ _id: new ObjectId(id) })
     res.send(result)
 })
 
