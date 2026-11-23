@@ -26,6 +26,7 @@ const mongoClient = await connectToMongoDB()
 const myDB = mongoClient.db('PizzaHub')
 
 const allPizza = myDB.collection('allpizza')
+const orderItem = myDB.collection('orderitem')
 
 
 app.get('/', (req, res) => {
@@ -63,13 +64,13 @@ app.get('/pizza', async (req, res) => {
 })
 //http://localhost:5000/pizzaId/id
 app.get('/pizzaId/:id', async (req, res) => {
-    const {id} = req.params
+    const { id } = req.params
     const result = await allPizza.findOne({ _id: new ObjectId(id) })
     res.send(result)
 })
 
 app.get('/pizza/:email', async (req, res) => {
-    const {email} = req.params
+    const { email } = req.params
     const result = await allPizza.find({ email: email }).toArray()
     res.send(result)
 })
@@ -78,6 +79,21 @@ app.get('/pizza/:email', async (req, res) => {
 app.get('/pizzaSection', async (req, res) => {
 
     const result = await allPizza.find().sort({ _id: 1 }).limit(6).toArray()
+    res.send(result)
+})
+
+
+//order item 
+app.post('/order', async (req, res) => {
+    const data = req.body
+    delete data._id
+    const result = await orderItem.insertOne(data)
+    res.send(result)
+})
+
+app.get('/myOrder/:email',async(req,res)=>{
+    const email=req.params.email
+    const result=await orderItem.find({useremail:email}).toArray()
     res.send(result)
 })
 
