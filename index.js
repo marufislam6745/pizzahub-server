@@ -25,12 +25,32 @@ export async function connectToMongoDB() {
 const mongoClient = await connectToMongoDB()
 const myDB = mongoClient.db('PizzaHub')
 
+const users = myDB.collection('user')
 const allPizza = myDB.collection('allpizza')
 const orderItem = myDB.collection('orderitem')
 
 
+http://localhost:5000
 app.get('/', (req, res) => {
     res.send('Hello World!')
+})
+
+//get user
+app.get('/users', async (req, res) => {
+    const query = {}
+    if (req.query) {
+        if (req.query.role) {
+            query.role = req.query.role
+        }
+        if (req.query.search) {
+            query.$or = [
+                { name: { $regex: req.query.search, $options: 'i' } },
+                { email: { $regex: req.query.search, $options: 'i' } },
+            ]
+        }
+    }
+    const result = await users.find(query).toArray()
+    res.send(result)
 })
 
 app.post('/addmenu', async (req, res) => {
@@ -38,7 +58,7 @@ app.post('/addmenu', async (req, res) => {
     const result = await allPizza.insertOne(data)
     res.send({ result })
 })
-
+//all item
 app.get('/pizza', async (req, res) => {
     const query = {}
     if (req.query) {
@@ -62,6 +82,44 @@ app.get('/pizza', async (req, res) => {
     res.send(result)
 
 })
+
+app.patch('/pizza/:id', async (req, res) => {
+    const { id } = req.params
+    const query = { _id: new ObjectId(id) }
+    const updatedDoc = {
+        $set: {
+            status: req.body.status
+        }
+    }
+    const result = await allPizza.updateOne(query, updatedDoc)
+    res.send(result)
+})
+
+//active item
+app.get('/activepizza', async (req, res) => {
+    const query = { status: 'active' }
+    if (req.query) {
+
+        if (req.query.category) {
+            query.category = req.query.category;
+        }
+
+        if (req.query.search) {
+            query.$or = [
+                { title: { $regex: req.query.search, $options: 'i' } },
+                { category: { $regex: req.query.search, $options: 'i' } },
+                { size: { $regex: req.query.search, $options: 'i' } },
+                { restaurantName: { $regex: req.query.search, $options: 'i' } },
+                { location: { $regex: req.query.search, $options: 'i' } },
+            ]
+        }
+    }
+
+    const result = await allPizza.find(query).toArray()
+    res.send(result)
+
+})
+
 //http://localhost:5000/pizzaId/id
 app.get('/pizzaId/:id', async (req, res) => {
     const { id } = req.params
@@ -84,7 +142,7 @@ app.delete('/pizza/:id', async (req, res) => {
 //http://localhost:5000/pizza
 app.get('/pizzaSection', async (req, res) => {
 
-    const result = await allPizza.find().sort({ _id: 1 }).limit(6).toArray()
+    const result = await allPizza.find({status:'active'}).sort({ postDate: -1 }).limit(6).toArray()
     res.send(result)
 })
 
