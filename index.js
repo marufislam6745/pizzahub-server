@@ -88,6 +88,24 @@ app.get('/pizzaSection', async (req, res) => {
     res.send(result)
 })
 
+//Customer order with vendor
+app.get('/vendorOrder/:vendorId', async (req, res) => {
+    const { vendorId } = req.params
+    const result = await orderItem.find({ vendorId: vendorId }).toArray()
+    res.send(result)
+})
+
+app.patch('/vendorOrder/:id', async (req, res) => {
+    const { id } = req.params
+    const query = { _id: new ObjectId(id) }
+    const updatedDoc = {
+        $set: {
+            status: req.body.status
+        }
+    }
+    const result = await orderItem.updateOne(query, updatedDoc)
+    res.send(result)
+})
 
 //order item 
 app.post('/order', async (req, res) => {
