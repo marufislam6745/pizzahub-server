@@ -2,6 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import 'dotenv/config'
 import { MongoClient, ObjectId } from 'mongodb';
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 
 
@@ -28,12 +31,21 @@ const myDB = mongoClient.db('PizzaHub')
 const users = myDB.collection('user')
 const allPizza = myDB.collection('allpizza')
 const orderItem = myDB.collection('orderitem')
+const payments = myDB.collection('payments')
 
 
 http://localhost:5000
 app.get('/', (req, res) => {
     res.send('Hello World!')
 })
+//premium user api
+app.get('/users/:id/premium', async (req, res) => {
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const result = await users.findOne(query, { projection: { premium: 1 } })
+    res.send(result)
+})
+
 
 //get user
 app.get('/users', async (req, res) => {
@@ -58,6 +70,17 @@ app.post('/addmenu', async (req, res) => {
     const result = await allPizza.insertOne(data)
     res.send({ result })
 })
+
+app.get('/addmenu/count', async (req, res) => {
+    // const data = req.body
+    const query = {}
+    if (req.query.applicantId) {
+        query.vendorId = req.query.applicantId;
+    }
+    const result = await allPizza.countDocuments(query)
+    res.send({ count: result })
+})
+
 //all item
 app.get('/pizza', async (req, res) => {
     const query = {}
@@ -142,7 +165,7 @@ app.delete('/pizza/:id', async (req, res) => {
 //http://localhost:5000/pizza
 app.get('/pizzaSection', async (req, res) => {
 
-    const result = await allPizza.find({status:'active'}).sort({ postDate: -1 }).limit(6).toArray()
+    const result = await allPizza.find({ status: 'active' }).sort({ postDate: -1 }).limit(6).toArray()
     res.send(result)
 })
 
@@ -183,6 +206,59 @@ app.delete('/myOrder/:id', async (req, res) => {
     const id = req.params.id
     const result = await orderItem.deleteOne({ _id: new ObjectId(id) })
     res.send(result)
+})
+
+
+//Payment api
+app.post('/payments/checkout-verify', async (req, res) => {
+    const { sessionId } = req.body
+
+    if (!sessionId) {
+        return res.send({ success: false, message: "SessionId is required" })
+    }
+
+    const {
+        status,
+        payment_status,
+        customer_email,
+        metadata,
+        payment_intent
+    } = await stripe.checkout.sessions.retrieve(sessionId);
+
+    //insert serssionId into payment collection
+    if (status === 'complete' && payment_status === 'paid') {
+
+        const sessionsQuery = { sessionId }
+        const existingPayment = await payments.findOne(sessionsQuery)
+        if (existingPayment) {
+            return res.send({ success: false, message: "Payment already verified" })
+        }
+
+        const payment = {
+            sessionId,
+            status,
+            payment_status,
+            customer_email,
+            userId: metadata.userId,
+            payment_date: new Date(),
+            payment_intent
+        }
+
+        const result = await payments.insertOne(payment)
+        const query = { _id: new ObjectId(metadata.userId) }
+
+        const updatedDoc = {
+            $set: {
+                premium: true,
+            }
+        }
+        const updateResult = await users.updateOne(query, updatedDoc)
+
+        res.send({ success: true, result, updateResult })
+        return
+    }
+
+    res.send({ success: false, message: "payment verification failed" })
 })
 
 app.listen(port, () => {
