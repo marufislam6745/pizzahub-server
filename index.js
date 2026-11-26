@@ -222,7 +222,8 @@ app.post('/payments/checkout-verify', async (req, res) => {
         payment_status,
         customer_email,
         metadata,
-        payment_intent
+        payment_intent,
+        amount_total
     } = await stripe.checkout.sessions.retrieve(sessionId);
 
     //insert serssionId into payment collection
@@ -241,7 +242,8 @@ app.post('/payments/checkout-verify', async (req, res) => {
             customer_email,
             userId: metadata.userId,
             payment_date: new Date(),
-            payment_intent
+            payment_intent,
+            amount: typeof amount_total === 'number' ? amount_total / 100 : 0
         }
 
         const result = await payments.insertOne(payment)
@@ -259,6 +261,19 @@ app.post('/payments/checkout-verify', async (req, res) => {
     }
 
     res.send({ success: false, message: "payment verification failed" })
+})
+
+app.get('/transactions', async (req, res) => {
+    const query = {}
+    if (req.query) {
+        if (req.query.search) {
+            query.$or = [
+                { customer_email: { $regex: req.query.search, $options: 'i' } },
+            ]
+        }
+    }
+    const result = await payments.find(query).toArray()
+    res.send(result)
 })
 
 app.listen(port, () => {
