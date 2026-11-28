@@ -34,6 +34,55 @@ const orderItem = myDB.collection('orderitem')
 const payments = myDB.collection('payments')
 
 
+const verifyToken = async (req, res, next) => {
+
+    const authHeader = req.headers.authorization;
+    // console.log(authHeader)
+    if (!authHeader) {
+        return res.status(401).send({ meg: 'You are Unauthorized' })
+    }
+
+    const token = authHeader.split(" ")[1]
+    //console.log(token)
+    if (!token) {
+        return res.status(401).send({ meg: 'You are Unauthorized' })
+    }
+
+    // const query = {}
+    // const result = await sessions.findOne(query)
+    // if (!result) {
+    //     res.status(401).send({ meg: 'You are Unauthorized' })
+    //     return
+    // }
+
+    // const userId = result.userId
+    // const userQuery = { _id: new ObjectId(userId) }
+    // const user = await users.findOne(userQuery)
+    // if (!user) {
+    //     res.status(401).send({ meg: 'You are Unauthorized' })
+    //     return
+    // }
+    // req.user = user;
+    next();
+}
+
+// const verifyCustomer = async (req, res, next) => {
+//     if (req.user.role !== 'customer') {
+//         res.status(403).send({ meg: 'You are Unauthorized' })
+//         return
+//     }
+//     next();
+// }
+
+// const verifyVendor = async (req, res, next) => {
+//     if (req.user.role !== 'Vendor') {
+//         res.status(403).send({ meg: 'You are Unauthorized' })
+//         return
+//     }
+//     next();
+//}
+
+
 http://localhost:5000
 app.get('/', (req, res) => {
     res.send('Hello World!')
@@ -170,7 +219,8 @@ app.get('/pizzaSection', async (req, res) => {
 })
 
 //Customer order with vendor
-app.get('/vendorOrder/:vendorId', async (req, res) => {
+app.get('/vendorOrder/:vendorId', verifyToken, async (req, res) => {
+
     const { vendorId } = req.params
     const result = await orderItem.find({ vendorId: vendorId }).toArray()
     res.send(result)
@@ -197,6 +247,9 @@ app.post('/order', async (req, res) => {
 })
 
 app.get('/myOrder/:email', async (req, res) => {
+
+
+
     const email = req.params.email
     const result = await orderItem.find({ useremail: email }).toArray()
     res.send(result)
