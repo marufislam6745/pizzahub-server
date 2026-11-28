@@ -69,7 +69,7 @@ const verifyToken = async (req, res, next) => {
 
 const verifyCustomer = async (req, res, next) => {
     if (req.user.role !== 'customer') {
-        res.status(403).send({ meg: 'You are Unauthorized' })
+        res.status(403).send({ meg: 'forbidden' })
         return
     }
     next();
@@ -77,7 +77,15 @@ const verifyCustomer = async (req, res, next) => {
 
 const verifyVendor = async (req, res, next) => {
     if (req.user.role !== 'vendor') {
-        res.status(403).send({ meg: 'You are Unauthorized' })
+        res.status(403).send({ meg: 'forbidden' })
+        return
+    }
+    next();
+}
+
+const verifyadmin = async (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        res.status(403).send({ meg: 'forbidden' })
         return
     }
     next();
@@ -89,7 +97,7 @@ app.get('/', (req, res) => {
     res.send('Hello World!')
 })
 //premium user api
-app.get('/users/:id/premium', async (req, res) => {
+app.get('/users/:id/premium', verifyToken, verifyVendor, async (req, res) => {
     const id = req.params.id
     const query = { _id: new ObjectId(id) }
     const result = await users.findOne(query, { projection: { premium: 1 } })
@@ -98,7 +106,7 @@ app.get('/users/:id/premium', async (req, res) => {
 
 
 //get user
-app.get('/users', async (req, res) => {
+app.get('/users',verifyToken,verifyadmin, async (req, res) => {
     const query = {}
     if (req.query) {
         if (req.query.role) {
@@ -157,7 +165,7 @@ app.get('/pizza', async (req, res) => {
 
 })
 
-app.patch('/pizza/:id', async (req, res) => {
+app.patch('/pizza/:id', verifyToken, verifyadmin, async (req, res) => {
     const { id } = req.params
     const query = { _id: new ObjectId(id) }
     const updatedDoc = {
@@ -195,19 +203,21 @@ app.get('/activepizza', async (req, res) => {
 })
 
 //http://localhost:5000/pizzaId/id
-app.get('/pizzaId/:id', async (req, res) => {
+app.get('/pizzaId/:id', verifyToken, async (req, res) => {
     const { id } = req.params
     const result = await allPizza.findOne({ _id: new ObjectId(id) })
     res.send(result)
 })
 
-app.get('/pizza/:email', async (req, res) => {
+//get create  item by vendor
+app.get('/pizza/:email', verifyToken, verifyVendor, async (req, res) => {
     const { email } = req.params
     const result = await allPizza.find({ email: email }).toArray()
     res.send(result)
 })
 
-app.delete('/pizza/:id', async (req, res) => {
+//vendor delete
+app.delete('/pizza/:id', verifyToken, async (req, res) => {
     const id = req.params.id
     const result = await allPizza.deleteOne({ _id: new ObjectId(id) })
     res.send(result)
@@ -221,14 +231,14 @@ app.get('/pizzaSection', async (req, res) => {
 })
 
 //Customer order with vendor
-app.get('/vendorOrder/:vendorId', verifyToken, async (req, res) => {
+app.get('/vendorOrder/:vendorId', verifyToken, verifyVendor, async (req, res) => {
 
     const { vendorId } = req.params
     const result = await orderItem.find({ vendorId: vendorId }).sort({ orderedAt: -1 }).toArray()
     res.send(result)
 })
 
-app.patch('/vendorOrder/:id', async (req, res) => {
+app.patch('/vendorOrder/:id', verifyToken, verifyVendor, async (req, res) => {
     const { id } = req.params
     const query = { _id: new ObjectId(id) }
     const updatedDoc = {
@@ -249,13 +259,13 @@ app.post('/order', verifyToken, verifyCustomer, async (req, res) => {
     res.send(result)
 })
 
-app.get('/myOrder/:email', async (req, res) => {
+app.get('/myOrder/:email', verifyToken, verifyCustomer, async (req, res) => {
     const email = req.params.email
     const result = await orderItem.find({ useremail: email }).toArray()
     res.send(result)
 })
 
-app.delete('/myOrder/:id', async (req, res) => {
+app.delete('/myOrder/:id', verifyToken, verifyCustomer, async (req, res) => {
     const id = req.params.id
     const result = await orderItem.deleteOne({ _id: new ObjectId(id) })
     res.send(result)
@@ -263,7 +273,7 @@ app.delete('/myOrder/:id', async (req, res) => {
 
 
 //Payment api
-app.post('/payments/checkout-verify', async (req, res) => {
+app.post('/payments/checkout-verify', verifyToken, verifyVendor, async (req, res) => {
     const { sessionId } = req.body
 
     if (!sessionId) {
@@ -316,7 +326,7 @@ app.post('/payments/checkout-verify', async (req, res) => {
     res.send({ success: false, message: "payment verification failed" })
 })
 
-app.get('/transactions', async (req, res) => {
+app.get('/transactions', verifyToken, verifyadmin, async (req, res) => {
     const query = {}
     if (req.query) {
         if (req.query.search) {
