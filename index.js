@@ -32,6 +32,7 @@ const users = myDB.collection('user')
 const allPizza = myDB.collection('allpizza')
 const orderItem = myDB.collection('orderitem')
 const payments = myDB.collection('payments')
+const sessions = myDB.collection('session')
 
 
 const verifyToken = async (req, res, next) => {
@@ -48,39 +49,39 @@ const verifyToken = async (req, res, next) => {
         return res.status(401).send({ meg: 'You are Unauthorized' })
     }
 
-    // const query = {}
-    // const result = await sessions.findOne(query)
-    // if (!result) {
-    //     res.status(401).send({ meg: 'You are Unauthorized' })
-    //     return
-    // }
+    const query = { token }
+    const session = await sessions.findOne(query)
+    if (!session) {
+        res.status(401).send({ meg: 'You are Unauthorized' })
+        return
+    }
 
-    // const userId = result.userId
-    // const userQuery = { _id: new ObjectId(userId) }
-    // const user = await users.findOne(userQuery)
-    // if (!user) {
-    //     res.status(401).send({ meg: 'You are Unauthorized' })
-    //     return
-    // }
-    // req.user = user;
+    const userId = session.userId
+    const userQuery = { _id: new ObjectId(userId) }
+    const user = await users.findOne(userQuery)
+    if (!user) {
+        res.status(401).send({ meg: 'You are Unauthorized' })
+        return
+    }
+    req.user = user;
     next();
 }
 
-// const verifyCustomer = async (req, res, next) => {
-//     if (req.user.role !== 'customer') {
-//         res.status(403).send({ meg: 'You are Unauthorized' })
-//         return
-//     }
-//     next();
-// }
+const verifyCustomer = async (req, res, next) => {
+    if (req.user.role !== 'customer') {
+        res.status(403).send({ meg: 'You are Unauthorized' })
+        return
+    }
+    next();
+}
 
-// const verifyVendor = async (req, res, next) => {
-//     if (req.user.role !== 'Vendor') {
-//         res.status(403).send({ meg: 'You are Unauthorized' })
-//         return
-//     }
-//     next();
-//}
+const verifyVendor = async (req, res, next) => {
+    if (req.user.role !== 'vendor') {
+        res.status(403).send({ meg: 'You are Unauthorized' })
+        return
+    }
+    next();
+}
 
 
 http://localhost:5000
@@ -114,7 +115,8 @@ app.get('/users', async (req, res) => {
     res.send(result)
 })
 
-app.post('/addmenu', async (req, res) => {
+//vendor new item add
+app.post('/addmenu', verifyToken, verifyVendor, async (req, res) => {
     const data = req.body
     const result = await allPizza.insertOne(data)
     res.send({ result })
@@ -222,7 +224,7 @@ app.get('/pizzaSection', async (req, res) => {
 app.get('/vendorOrder/:vendorId', verifyToken, async (req, res) => {
 
     const { vendorId } = req.params
-    const result = await orderItem.find({ vendorId: vendorId }).toArray()
+    const result = await orderItem.find({ vendorId: vendorId }).sort({ orderedAt: -1 }).toArray()
     res.send(result)
 })
 
@@ -238,8 +240,9 @@ app.patch('/vendorOrder/:id', async (req, res) => {
     res.send(result)
 })
 
-//order item 
-app.post('/order', async (req, res) => {
+
+//Customer order item 
+app.post('/order', verifyToken, verifyCustomer, async (req, res) => {
     const data = req.body
     delete data._id
     const result = await orderItem.insertOne(data)
@@ -247,9 +250,6 @@ app.post('/order', async (req, res) => {
 })
 
 app.get('/myOrder/:email', async (req, res) => {
-
-
-
     const email = req.params.email
     const result = await orderItem.find({ useremail: email }).toArray()
     res.send(result)
